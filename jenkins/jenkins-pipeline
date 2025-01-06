@@ -1,0 +1,59 @@
+pipeline {
+    agent any
+    environment {
+        WORKING_DIRECTORY = "/home/ubuntu/jenkins/workspace"
+    }
+    stages {
+        stage('checkout') {
+            steps {
+                sh '''
+                mkdir -p ${WORKING_DIRECTORY}/spring
+                '''
+                dir("${WORKING_DIRECTORY}/spring") {
+                    git branch :"${BRANCH}", url:"https://github.com/Bhavani575/springboot-demo.git"    
+                }
+            }
+        }
+        stage('infra checkout') {
+            steps {
+                sh '''
+                mkdir -p ${WORKING_DIRECTORY}/infra
+                '''
+                dir("${WORKING_DIRECTORY}/infra") {
+                    git branch :"${INFRA_BRANCH}", url:"https://github.com/Bhavani575/infra.git"
+                }
+            }
+        }
+        stage('Build image') {
+            steps {
+                sh '''
+                cd ${WORKING_DIRECTORY}/spring
+                docker build -t bhavani575/spring:${BUILD_NUMBER} .
+                docker images
+                '''
+            }
+        }
+        stage('Docker Login') {
+            steps {
+                withCredentials([string(credentialsId: 'docker_hub_password', variable: 'DOCKER_PASS')]) {
+                    sh '''
+                    docker login -u bhavani575 -p ${DOCKER_PASS}
+                    docker push bhavani575/spring:${BUILD_NUMBER}
+                    '''
+                }
+            }
+        }
+        stage('Deployment stage') {
+            steps {
+                sh '''
+                cd ${WORKING_DIRECTORY}/infra
+                aws eks update-kubeconfig --region ap-south-1 --name bhavani
+                kubectl get ns
+                helm upgrade --install spring /home/ubuntu/springboot-app -f /home/ubuntu/springboot-app/values-spring.yaml -n spring --set image.tag=${BUILD_NUMBER}
+                kubectl get pods -n spring
+                kubectl get svc -n spring
+                '''
+            }
+        }
+    }
+}
