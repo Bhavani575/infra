@@ -1,0 +1,5 @@
+Git init --- its initializes new repository
+Git pull ---pull updated data from github repository
+Git add . --- applicable for any chnages  or any new files created,added,deleted
+Git commit -m "file 1 deleted…chnages related message or information to track changes"
+Git push origin main
